@@ -38,7 +38,15 @@ Destacar «responder solo con el contexto» como defensa contra alucinaciones y 
 **10. Retos técnicos (45 s)**
 Contar lo que pasó de verdad: se agotó la cuota diaria de embeddings, cambiaron los nombres de los modelos y hubo errores 500. Explicar cómo se resolvió cada uno: reutilizar el índice, cambiar de modelo automáticamente y reintentar.
 
-**11. Demo en vivo (2-3 min)**
+**11. Resultados reales: memoria (45 s)**
+Enseñar la pregunta 6: la búsqueda reformulada convierte «lo que vimos al principio» en una consulta concreta, y el resumen recoge las preguntas 1 a 3 con sus fuentes.
+
+**12. Resultados reales: hilos y límites (45 s)**
+- El hilo «demo» guarda 14 mensajes; en un hilo nuevo el agente no sabe cuál fue la primera pregunta. La memoria está aislada por `thread_id`.
+- La paella se rechaza y se redirige a GA4.
+- Reconocer la limitación: aun así consulta ChromaDB. Mejora propuesta: un nodo *router*.
+
+**13. Demo en vivo (2-3 min)**
 Ejecutar las preguntas en Colab (o en Streamlit) en este orden:
 1. ¿Qué tipos de eventos existen en GA4 y en qué se diferencian?
 2. ¿Qué eventos recoge la medición mejorada?
@@ -50,5 +58,5 @@ Ejecutar las preguntas en Colab (o en Streamlit) en este orden:
 
 > Consejo: ejecuta el notebook completo antes de la clase. Así el índice ya está construido y la demo no gasta cuota ni tiempo indexando.
 
-**12. Conclusiones (30 s)**
-Lo conseguido y las mejoras posibles (re-ranking, búsqueda híbrida, evaluación automática). Cerrar con el enlace al repositorio.
+**14. Conclusiones (30 s)**
+Lo conseguido y las mejoras posibles (re-ranking, búsqueda híbrida, router para preguntas fuera de dominio, evaluación automática). Cerrar con el enlace al repositorio.
