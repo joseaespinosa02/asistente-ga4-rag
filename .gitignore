@@ -1,0 +1,18 @@
+# Secretos
+.env
+.streamlit/secrets.toml
+
+# Base vectorial y caché de descargas (se regeneran ejecutando el notebook)
+chroma_db/
+data/cache/
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
