@@ -156,7 +156,13 @@ class RetryingEmbeddings(Embeddings):
         return with_retries(self.inner.embed_documents, texts)
 
     def embed_query(self, text: str) -> list[float]:
-        return with_retries(self.inner.embed_query, text)
+        # Se envía la consulta por la misma vía que los documentos (formato por lotes), pero con
+        # task_type RETRIEVAL_QUERY: la vía de texto suelto de embed_query devolvía 500 INTERNAL
+        # de forma sistemática con gemini-embedding-001.
+        try:
+            return with_retries(self.inner.embed_documents, [text], task_type="RETRIEVAL_QUERY")[0]
+        except TypeError:  # embeddings que no aceptan task_type (p. ej. en tests)
+            return with_retries(self.inner.embed_query, text)
 
 
 def get_embeddings() -> Embeddings:
