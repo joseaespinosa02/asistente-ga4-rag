@@ -195,7 +195,12 @@ def build_vectorstore(
         persist_directory=str(persist_dir),
         collection_metadata={"hnsw:space": "cosine"},
     )
-    if reset and store._collection.count() > 0:
+    existing = store._collection.count()
+    if existing == len(chunks):
+        # Mismo contenido ya indexado (p. ej. tras reiniciar la sesión): no se gasta cuota de la API
+        print(f"  Índice ya existente con {existing} fragmentos: se reutiliza")
+        return store
+    if reset and existing > 0:
         store.reset_collection()
     _add_in_batches(store, chunks)
     return store
