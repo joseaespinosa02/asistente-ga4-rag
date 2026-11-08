@@ -75,7 +75,7 @@ def resolve_llm_model() -> str:
         available = [
             m.name.removeprefix("models/")
             for m in genai.Client().models.list()
-            if "generateContent" in (m.supported_actions or [])
+            if m.supported_actions is None or "generateContent" in m.supported_actions
         ]
     except Exception as exc:  # noqa: BLE001
         print(f"No se pudo listar los modelos ({exc}); uso {config.LLM_MODEL}")
@@ -93,7 +93,11 @@ def resolve_llm_model() -> str:
         nums = re.findall(r"\d+(?:\.\d+)?", name.split("flash")[0])
         return (float(nums[0]) if nums else 0.0, -len(name))
 
-    return max(flash, key=version) if flash else config.LLM_MODEL
+    # Las familias 2.x ya no se ofrecen a cuentas nuevas: se priorizan las 3.x o superiores
+    flash = [m for m in flash if version(m)[0] >= 3] or flash
+    if not flash:
+        return config.LLM_MODEL
+    return max(flash, key=version)
 
 
 def get_llm() -> BaseChatModel:

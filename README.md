@@ -129,7 +129,7 @@ La primera ejecución construye el índice (1-2 minutos) y las siguientes lo reu
 ### Cambiar de modelo
 Sin tocar el código, con variables de entorno (en `.env` o en los secrets):
 ```
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
 > Si cambias el modelo de embeddings, vuelve a ejecutar la indexación, porque los vectores de modelos distintos no son compatibles.
