@@ -2,7 +2,7 @@
 
 Proyecto final del módulo de **IA Generativa** del Máster en Data Science (Evolve).
 
-📑 **Presentación:** [`docs/presentacion.pdf`](docs/presentacion.pdf) · [guion de la demo](docs/guion_presentacion.md)
+📑 **Presentación explicativa del proyecto:** [`docs/presentacion.pdf`](docs/presentacion.pdf)
 
 Agente conversacional que responde preguntas sobre **Google Analytics 4** con **RAG** (Retrieval-Augmented Generation). Usa la documentación oficial de Google como base de conocimiento, **Gemini** como LLM y para los embeddings, **ChromaDB** como base vectorial y **LangGraph** para orquestar el agente con **memoria de conversación**.
 
@@ -149,8 +149,7 @@ asistente-ga4-rag/
 ├── app/
 │   └── streamlit_app.py          # interfaz web (bonus)
 ├── docs/
-│   ├── presentacion.pdf          # diapositivas de la presentación
-│   └── guion_presentacion.md     # guion de la exposición y la demo
+│   └── presentacion.pdf          # presentación explicativa del proyecto
 ├── data/                         # PDFs/MD propios opcionales (+ caché local, ignorada por git)
 ├── requirements.txt
 ├── .env.example                  # plantilla de la API key
