@@ -130,28 +130,48 @@ def split_documents(docs: list[Document]) -> list[Document]:
 # ---------------------------------------------------------------------------
 # 3. Embeddings + ChromaDB
 # ---------------------------------------------------------------------------
+TRANSIENT_ERRORS = ("429", "500", "502", "503", "504", "RESOURCE_EXHAUSTED", "INTERNAL", "UNAVAILABLE", "DEADLINE")
+
+
+def with_retries(fn, *args, attempts: int = 6, **kwargs):
+    """Reintenta con espera creciente los errores temporales de la API de Gemini (límites, 500, 503)."""
+    for attempt in range(attempts):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:  # noqa: BLE001
+            if attempt == attempts - 1 or not any(code in str(exc) for code in TRANSIENT_ERRORS):
+                raise
+            wait = min(5 * 2**attempt, 60)
+            print(f"  Error temporal de la API ({str(exc)[:60]}…). Reintento en {wait}s")
+            time.sleep(wait)
+
+
+class RetryingEmbeddings(Embeddings):
+    """Envuelve los embeddings de Gemini para que los fallos puntuales del servidor no rompan el flujo."""
+
+    def __init__(self, inner: Embeddings):
+        self.inner = inner
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return with_retries(self.inner.embed_documents, texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        return with_retries(self.inner.embed_query, text)
+
+
 def get_embeddings() -> Embeddings:
     from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
     config.load_api_key()
-    return GoogleGenerativeAIEmbeddings(model=config.EMBEDDING_MODEL)
+    return RetryingEmbeddings(GoogleGenerativeAIEmbeddings(model=config.EMBEDDING_MODEL))
 
 
 def _add_in_batches(store: Chroma, chunks: list[Document], batch_size: int = 50) -> None:
-    """Indexa por lotes y reintenta si la capa gratuita de Gemini devuelve 429 (rate limit)."""
+    """Indexa por lotes para respetar los límites de la capa gratuita de la API."""
     for start in range(0, len(chunks), batch_size):
         batch = chunks[start : start + batch_size]
         ids = [f"chunk-{c.metadata['chunk_id']}" for c in batch]
-        for attempt in range(5):
-            try:
-                store.add_documents(batch, ids=ids)
-                break
-            except Exception as exc:  # noqa: BLE001
-                if "429" not in str(exc) and "RESOURCE_EXHAUSTED" not in str(exc):
-                    raise
-                wait = 15 * (attempt + 1)
-                print(f"  Límite de la API alcanzado, reintento en {wait}s…")
-                time.sleep(wait)
+        store.add_documents(batch, ids=ids)
         print(f"  Indexados {min(start + batch_size, len(chunks))}/{len(chunks)} fragmentos")
 
 

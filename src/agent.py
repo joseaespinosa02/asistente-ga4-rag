@@ -62,7 +62,8 @@ def get_llm() -> BaseChatModel:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     config.load_api_key()
-    return ChatGoogleGenerativeAI(model=config.LLM_MODEL)
+    # max_retries: reintenta automáticamente errores temporales del servidor (500/503/429)
+    return ChatGoogleGenerativeAI(model=config.LLM_MODEL, max_retries=6)
 
 
 def format_context(context: list[dict]) -> str:
