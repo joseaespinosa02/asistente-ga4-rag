@@ -2,12 +2,14 @@
 
 Proyecto final del módulo de **IA Generativa** del Máster en Data Science (Evolve).
 
+📑 **Presentación:** [`docs/presentacion.pdf`](docs/presentacion.pdf) · [guion de la demo](docs/guion_presentacion.md)
+
 Agente conversacional que responde preguntas sobre **Google Analytics 4** con **RAG** (Retrieval-Augmented Generation). Usa la documentación oficial de Google como base de conocimiento, **Gemini** como LLM y para los embeddings, **ChromaDB** como base vectorial y **LangGraph** para orquestar el agente con **memoria de conversación**.
 
 | Componente | Tecnología |
 |---|---|
 | LLM | Google Gemini Flash (se elige automáticamente el más reciente disponible) |
-| Embeddings | Gemini Embeddings (`gemini-embedding-001`) |
+| Embeddings | Gemini Embeddings (`gemini-embedding-001`, con cambio automático a `gemini-embedding-2` si se agota la cuota) |
 | Base vectorial | ChromaDB (persistente, distancia coseno) |
 | Agente | LangGraph + LangChain |
 | Memoria | Checkpointer de LangGraph (`InMemorySaver`) por `thread_id` |
@@ -146,6 +148,9 @@ asistente-ga4-rag/
 │   └── agent.py                  # system prompt + grafo LangGraph con memoria
 ├── app/
 │   └── streamlit_app.py          # interfaz web (bonus)
+├── docs/
+│   ├── presentacion.pdf          # diapositivas de la presentación
+│   └── guion_presentacion.md     # guion de la exposición y la demo
 ├── data/                         # PDFs/MD propios opcionales (+ caché local, ignorada por git)
 ├── requirements.txt
 ├── .env.example                  # plantilla de la API key
