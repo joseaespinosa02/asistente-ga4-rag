@@ -13,7 +13,7 @@ CHROMA_DIR = ROOT_DIR / "chroma_db"     # base vectorial persistente (no se sube
 COLLECTION_NAME = "ga4_docs"
 
 # --- Modelos de Gemini (se pueden cambiar con variables de entorno) --------
-LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # respaldo si no se puede listar
 EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
 
 # --- Parámetros RAG --------------------------------------------------------

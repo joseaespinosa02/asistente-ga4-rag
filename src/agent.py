@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import re
+
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.vectorstores import VectorStore
@@ -58,12 +61,50 @@ class AgentState(MessagesState):
     context: list[dict]
 
 
+def resolve_llm_model() -> str:
+    """Elige el modelo Flash más reciente disponible para la API key.
+
+    Los nombres de Gemini cambian con frecuencia (y los alias no siempre están habilitados),
+    así que se consulta la lista real de modelos. Si se define GEMINI_MODEL, se respeta.
+    """
+    if os.getenv("GEMINI_MODEL"):
+        return os.environ["GEMINI_MODEL"]
+    try:
+        from google import genai
+
+        available = [
+            m.name.removeprefix("models/")
+            for m in genai.Client().models.list()
+            if "generateContent" in (m.supported_actions or [])
+        ]
+    except Exception as exc:  # noqa: BLE001
+        print(f"No se pudo listar los modelos ({exc}); uso {config.LLM_MODEL}")
+        return config.LLM_MODEL
+
+    excluded = ("lite", "image", "tts", "live", "audio", "exp", "preview", "thinking", "8b")
+    flash = [
+        m for m in available
+        if m.startswith("gemini-") and "flash" in m and not any(x in m for x in excluded)
+    ]
+    if not flash:  # sin estables: aceptar previews
+        flash = [m for m in available if m.startswith("gemini-") and "flash" in m and "lite" not in m]
+
+    def version(name: str) -> tuple:
+        nums = re.findall(r"\d+(?:\.\d+)?", name.split("flash")[0])
+        return (float(nums[0]) if nums else 0.0, -len(name))
+
+    return max(flash, key=version) if flash else config.LLM_MODEL
+
+
 def get_llm() -> BaseChatModel:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     config.load_api_key()
+    model = resolve_llm_model()
+    config.LLM_MODEL = model
+    print(f"Modelo LLM: {model}")
     # max_retries: reintenta automáticamente errores temporales del servidor (500/503/429)
-    return ChatGoogleGenerativeAI(model=config.LLM_MODEL, max_retries=6)
+    return ChatGoogleGenerativeAI(model=model, max_retries=6)
 
 
 def format_context(context: list[dict]) -> str:
