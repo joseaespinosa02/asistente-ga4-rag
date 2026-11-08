@@ -248,8 +248,28 @@ def build_vectorstore(
     persist_dir: Path = config.CHROMA_DIR,
     reset: bool = True,
 ) -> Chroma:
-    """Crea (o recrea) la colección en ChromaDB con los fragmentos y sus embeddings."""
+    """Crea (o recrea) la colección en ChromaDB con los fragmentos y sus embeddings.
+
+    Si a mitad de la indexación se agota la cuota diaria del modelo, cambia al siguiente
+    modelo de embeddings de Gemini y vuelve a indexar en la colección de ese modelo.
+    """
     embeddings = embeddings or get_embeddings()
+    try:
+        return _build(chunks, embeddings, persist_dir, reset)
+    except RuntimeError as exc:
+        if "DIARIA" not in str(exc) or not isinstance(embeddings, RetryingEmbeddings):
+            raise
+        current = embeddings.inner.model
+        remaining = [m for m in config.EMBEDDING_FALLBACKS if m != current]
+        if not remaining:
+            raise
+        print(f"  ✗ Cuota diaria agotada en {current}; cambio a {remaining[0]}")
+        os.environ["GEMINI_EMBEDDING_MODEL"] = remaining[0]
+        config.EMBEDDING_FALLBACKS = remaining
+        return build_vectorstore(chunks, get_embeddings(), persist_dir, reset)
+
+
+def _build(chunks: list[Document], embeddings: Embeddings, persist_dir: Path, reset: bool) -> Chroma:
     store = Chroma(
         collection_name=config.collection_name(),
         embedding_function=embeddings,
