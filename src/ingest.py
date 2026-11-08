@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import time
 from pathlib import Path
@@ -141,6 +142,12 @@ def with_retries(fn, *args, attempts: int = 6, **kwargs):
         except Exception as exc:  # noqa: BLE001
             if attempt == attempts - 1 or not any(code in str(exc) for code in TRANSIENT_ERRORS):
                 raise
+            if "PerDay" in str(exc) or "per day" in str(exc):
+                raise RuntimeError(
+                    "Se agotó la cuota DIARIA gratuita de la API de Gemini para este modelo. "
+                    "Espera a que se reinicie (indicado en el error) o usa otro modelo de embeddings "
+                    "con la variable GEMINI_EMBEDDING_MODEL."
+                ) from exc
             wait = min(5 * 2**attempt, 60)
             print(f"  Error temporal de la API ({str(exc)[:60]}…). Reintento en {wait}s")
             time.sleep(wait)
@@ -169,7 +176,9 @@ def get_embeddings() -> Embeddings:
     from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
     config.load_api_key()
-    return RetryingEmbeddings(GoogleGenerativeAIEmbeddings(model=config.EMBEDDING_MODEL))
+    model = os.getenv("GEMINI_EMBEDDING_MODEL", config.EMBEDDING_MODEL)
+    print(f"Modelo de embeddings: {model}")
+    return RetryingEmbeddings(GoogleGenerativeAIEmbeddings(model=model))
 
 
 def _add_in_batches(store: Chroma, chunks: list[Document], batch_size: int = 50) -> None:
@@ -190,7 +199,7 @@ def build_vectorstore(
     """Crea (o recrea) la colección en ChromaDB con los fragmentos y sus embeddings."""
     embeddings = embeddings or get_embeddings()
     store = Chroma(
-        collection_name=config.COLLECTION_NAME,
+        collection_name=config.collection_name(),
         embedding_function=embeddings,
         persist_directory=str(persist_dir),
         collection_metadata={"hnsw:space": "cosine"},
@@ -209,7 +218,7 @@ def build_vectorstore(
 def load_vectorstore(embeddings: Embeddings | None = None, persist_dir: Path = config.CHROMA_DIR) -> Chroma:
     """Abre la colección ya persistida en disco."""
     return Chroma(
-        collection_name=config.COLLECTION_NAME,
+        collection_name=config.collection_name(),
         embedding_function=embeddings or get_embeddings(),
         persist_directory=str(persist_dir),
         collection_metadata={"hnsw:space": "cosine"},

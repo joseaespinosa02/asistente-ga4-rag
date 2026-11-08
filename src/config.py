@@ -10,11 +10,16 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"            # PDFs / .md / .txt propios (opcional)
 CACHE_DIR = DATA_DIR / "cache"          # copia local de las páginas descargadas
 CHROMA_DIR = ROOT_DIR / "chroma_db"     # base vectorial persistente (no se sube a git)
-COLLECTION_NAME = "ga4_docs"
 
 # --- Modelos de Gemini (se pueden cambiar con variables de entorno) --------
 LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")  # respaldo si no se puede listar
 EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+
+
+def collection_name() -> str:
+    """Una colección por modelo de embeddings: los vectores de modelos distintos no son compatibles."""
+    model = os.getenv("GEMINI_EMBEDDING_MODEL", EMBEDDING_MODEL)
+    return "ga4_docs_" + "".join(c if c.isalnum() else "_" for c in model)
 
 # --- Parámetros RAG --------------------------------------------------------
 CHUNK_SIZE = 1000        # caracteres por fragmento
