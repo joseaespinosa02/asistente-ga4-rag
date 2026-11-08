@@ -76,6 +76,10 @@ def load_api_key() -> str:
         except ImportError:
             pass
 
+    # Limpia saltos de línea o espacios pegados por error (p. ej. la clave pegada dos veces)
+    if key:
+        key = key.strip().split()[0]
+
     if not key:
         raise RuntimeError(
             "No encontré la API key de Gemini. Defínela como GOOGLE_API_KEY en "
