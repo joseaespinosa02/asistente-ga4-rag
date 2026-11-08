@@ -14,6 +14,7 @@ CHROMA_DIR = ROOT_DIR / "chroma_db"     # base vectorial persistente (no se sube
 # --- Modelos de Gemini (se pueden cambiar con variables de entorno) --------
 LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")  # respaldo si no se puede listar
 EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+EMBEDDING_FALLBACKS = ["gemini-embedding-001", "gemini-embedding-2"]  # se prueban en orden si uno falla
 
 
 def collection_name() -> str:

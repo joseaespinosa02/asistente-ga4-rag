@@ -153,8 +153,51 @@ def with_retries(fn, *args, attempts: int = 6, **kwargs):
             time.sleep(wait)
 
 
+class GeminiEmbeddings(Embeddings):
+    """Embeddings de Gemini llamando directamente al SDK oficial (google-genai).
+
+    - gemini-embedding-001 usa task_type (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY).
+    - gemini-embedding-2 indica la tarea con un prefijo en el propio texto.
+    """
+
+    BATCH_SIZE = 100
+
+    def __init__(self, model: str):
+        from google import genai
+
+        self.model = model
+        self.client = genai.Client()
+        self.uses_prefix = "embedding-2" in model
+
+    def _embed(self, texts: list[str], task: str) -> list[list[float]]:
+        from google.genai import types
+
+        if self.uses_prefix:
+            prefix = "task: search result | query: " if task == "RETRIEVAL_QUERY" else "title: none | text: "
+            texts = [prefix + t for t in texts]
+            cfg = None
+        else:
+            cfg = types.EmbedContentConfig(task_type=task)
+
+        vectors: list[list[float]] = []
+        for i in range(0, len(texts), self.BATCH_SIZE):
+            batch = texts[i : i + self.BATCH_SIZE]
+            contents = [{"parts": [{"text": t}]} for t in batch]  # un Content por texto -> un vector por texto
+            result = self.client.models.embed_content(model=self.model, contents=contents, config=cfg)
+            vectors.extend(list(e.values) for e in result.embeddings)
+        if len(vectors) != len(texts):
+            raise RuntimeError(f"Se esperaban {len(texts)} embeddings y llegaron {len(vectors)}")
+        return vectors
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._embed(texts, "RETRIEVAL_DOCUMENT")
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed([text], "RETRIEVAL_QUERY")[0]
+
+
 class RetryingEmbeddings(Embeddings):
-    """Envuelve los embeddings de Gemini para que los fallos puntuales del servidor no rompan el flujo."""
+    """Envuelve los embeddings para que los fallos puntuales del servidor no rompan el flujo."""
 
     def __init__(self, inner: Embeddings):
         self.inner = inner
@@ -163,22 +206,31 @@ class RetryingEmbeddings(Embeddings):
         return with_retries(self.inner.embed_documents, texts)
 
     def embed_query(self, text: str) -> list[float]:
-        # Se envía la consulta por la misma vía que los documentos (formato por lotes), pero con
-        # task_type RETRIEVAL_QUERY: la vía de texto suelto de embed_query devolvía 500 INTERNAL
-        # de forma sistemática con gemini-embedding-001.
-        try:
-            return with_retries(self.inner.embed_documents, [text], task_type="RETRIEVAL_QUERY")[0]
-        except TypeError:  # embeddings que no aceptan task_type (p. ej. en tests)
-            return with_retries(self.inner.embed_query, text)
+        return with_retries(self.inner.embed_query, text)
 
 
 def get_embeddings() -> Embeddings:
-    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    """Devuelve el primer modelo de embeddings de Gemini que responda.
 
+    Si el modelo principal falla (p. ej. cuota diaria gratuita agotada), prueba el siguiente.
+    Cada modelo tiene su propia colección en ChromaDB, así que no se mezclan vectores.
+    """
     config.load_api_key()
-    model = os.getenv("GEMINI_EMBEDDING_MODEL", config.EMBEDDING_MODEL)
-    print(f"Modelo de embeddings: {model}")
-    return RetryingEmbeddings(GoogleGenerativeAIEmbeddings(model=model))
+    preferred = os.getenv("GEMINI_EMBEDDING_MODEL", config.EMBEDDING_MODEL)
+    candidates = [preferred] + [m for m in config.EMBEDDING_FALLBACKS if m != preferred]
+    last_error: Exception | None = None
+    for model in candidates:
+        emb = RetryingEmbeddings(GeminiEmbeddings(model))
+        try:
+            emb.embed_query("prueba de conexión")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ✗ {model} no disponible ahora: {str(exc)[:120]}")
+            last_error = exc
+            continue
+        os.environ["GEMINI_EMBEDDING_MODEL"] = model  # fija la colección de ChromaDB de este modelo
+        print(f"Modelo de embeddings: {model}")
+        return emb
+    raise RuntimeError("Ningún modelo de embeddings de Gemini está disponible ahora mismo") from last_error
 
 
 def _add_in_batches(store: Chroma, chunks: list[Document], batch_size: int = 50) -> None:
